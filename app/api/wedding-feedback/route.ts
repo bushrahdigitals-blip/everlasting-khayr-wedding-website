@@ -9,7 +9,11 @@ function configuration() {
   const url = process.env.SUPABASE_URL?.trim()
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !key) return null
-  return { url: url.replace(/\/+$/, ''), key }
+  const baseUrl = url
+    .replace(/\/+$/, '')
+    .replace(/(?:\/rest\/v1)+$/i, '')
+    .replace(/\/+$/, '')
+  return { url: baseUrl, key }
 }
 
 async function databaseRequest(path: string, init?: RequestInit) {
