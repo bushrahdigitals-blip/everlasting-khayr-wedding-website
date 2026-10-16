@@ -32,7 +32,36 @@ async function databaseRequest(path: string, init?: RequestInit) {
       ...(init?.headers ?? {}),
     },
   })
-  if (!response.ok) throw new Error(`Shared feedback database request failed with status ${response.status}.`)
+  if (!response.ok) {
+    let databaseCode: string | undefined
+    let responseType = response.headers.get('content-type')?.split(';', 1)[0] ?? 'unknown'
+    try {
+      const body: unknown = await response.clone().json()
+      if (body && typeof body === 'object' && 'code' in body && typeof body.code === 'string' && /^[A-Z0-9]+$/.test(body.code)) {
+        databaseCode = body.code.slice(0, 32)
+      }
+    } catch {
+      // A non-JSON response can indicate that the configured host/path is not a Supabase REST endpoint.
+    }
+    if (responseType.includes('json')) responseType = 'json'
+    else if (responseType.includes('html')) responseType = 'html'
+    else responseType = 'other'
+
+    const endpoint = path.split('?', 1)[0]
+    const errorKind = databaseCode === 'PGRST205' || databaseCode === '42P01'
+      ? 'table_not_found_or_not_exposed'
+      : response.status === 404 && responseType !== 'json'
+        ? 'non_supabase_or_invalid_rest_endpoint'
+        : 'upstream_error'
+    console.error('[wedding-feedback] Supabase request failed', {
+      status: response.status,
+      endpoint,
+      responseType,
+      databaseCode,
+      errorKind,
+    })
+    throw new Error(`Shared feedback database request failed with status ${response.status}.`)
+  }
   return response
 }
 
