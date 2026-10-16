@@ -6,15 +6,22 @@ const REVIEW_PAGE_SIZE = 50
 const MESSAGE_PAGE_SIZE = 50
 
 function configuration() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = process.env.SUPABASE_URL?.trim()
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !key) return null
   return { url: url.replace(/\/+$/, ''), key }
 }
 
 async function databaseRequest(path: string, init?: RequestInit) {
   const config = configuration()
-  if (!config) throw new Error('Shared RSVP and review storage is not configured.')
+  if (!config) {
+    // Report presence only. Never include credential values in server logs.
+    console.error('[wedding-feedback] Supabase environment availability', {
+      SUPABASE_URL: Boolean(process.env.SUPABASE_URL?.trim()),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    })
+    throw new Error('Shared RSVP and review storage is not configured.')
+  }
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
     cache: 'no-store',
